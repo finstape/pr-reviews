@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  db-test:
+    container_name: db-test
+    image: postgres:18.1-alpine
+    environment:
+      POSTGRES_SSL_MODE: "disable"
+      POSTGRES_HOST: "db-test"
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: "db_test"
+      POSTGRES_PASSWORD: "test_password"
+      POSTGRES_USER: "test_user"
+    volumes:
+      - db_test_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d db_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  integration-test:
+    container_name: integration-test
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      PG_URL: "postgres://test_user:test_password@db-test:5432/db_test?sslmode=disable"
+    depends_on:
+      db-test:
+        condition: service_healthy
+    command: go test -v -tags=integration ./integration-test/...
+
+volumes:
+  db_test_data:
+
